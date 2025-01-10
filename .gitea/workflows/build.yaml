@@ -62,12 +62,12 @@ jobs:
           chmod 755 appimagetool-x86_64.AppImage
           ./appimagetool-x86_64.AppImage --appimage-extract
           cp squashfs-root/usr/bin/* /usr/local/bin/
-          cp chawan.desktop AppDir
-          cp icon.png AppDir
+          cp ../chawan.desktop AppDir
+          cp ../icon.png AppDir
           cd AppDir
           ln -s usr/bin/cha AppRun
-          cd ..
-          appimagetool AppDir
+          cd ../..
+          appimagetool chawan/AppDir
           mv Chawan-x86_64.AppImage "Chawan-x86_64-$(git rev-parse --short HEAD).AppImage"
           echo "filename=Chawan-x86_64-$(git rev-parse --short HEAD).AppImage" >> $GITHUB_OUTPUT
       - name: Publish AppImage
