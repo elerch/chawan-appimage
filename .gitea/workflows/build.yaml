@@ -28,6 +28,7 @@ jobs:
         with:
           lookup-only: true
           key: ${{ steps.upstream-version.outputs.version }}
+          path: README.md # Path required on lookup only?
       - name: Build AppImage
         id: build
         if: steps.cache.outputs.cache-hit != 'true'
