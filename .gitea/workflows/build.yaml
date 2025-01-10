@@ -68,9 +68,7 @@ jobs:
           ln -s usr/bin/cha AppRun
           cd ../..
           appimagetool chawan/AppDir
-          mv Chawan-x86_64.AppImage "Chawan-x86_64-$(git rev-parse --short HEAD).AppImage"
-          pwd
-          ls -l
+          mv Chawan-x86_64.AppImage ${{ runner.temp }}/"Chawan-x86_64-$(git rev-parse --short HEAD).AppImage"
           echo "filename=Chawan-x86_64-$(git rev-parse --short HEAD).AppImage" >> $GITHUB_OUTPUT
       - name: Publish AppImage
         if: steps.cache.outputs.cache-hit != 'true'
