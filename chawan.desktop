@@ -1,0 +1,7 @@
+[Desktop Entry]
+Name=Chawan
+Exec=cha
+Icon=icon
+Type=Application
+Categories=Network
+Terminal=true

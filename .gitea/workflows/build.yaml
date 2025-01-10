@@ -1,0 +1,92 @@
+name: AppImage Build
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '30 11 * * *' # 11:30 UTC, 3:30AM Pacific
+  push:
+    branches:
+      - '*'
+env:
+  ACTIONS_RUNTIME_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  ACTIONS_RUNTIME_URL: ${{ env.GITHUB_SERVER_URL }}/api/actions_pipeline/
+jobs:
+  build-appimage:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository code
+        uses: actions/checkout@v4
+      - name: Checkout upstream
+        run: |
+          git clone --depth=1 https://git.sr.ht/~bptato/chawan
+      - name: Upstream version
+        id: upstream-version
+        run: |
+          echo "version=$(git rev-parse HEAD)" >> $GITHUB_OUTPUT
+      - name: Check for pre-existing build
+        id: cache
+        uses: actions/cache/restore@v4
+        with:
+          lookup-only: true
+          key: ${{ steps.upstream-version.outputs.version }}
+      - name: Build AppImage
+        id: build
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends \
+            ca-certificates \
+            curl \
+            libssh2-1-dev \
+            libcurl4-openssl-dev \
+            pkg-config \
+            make \
+            ncurses-base \
+            xz-utils \
+            gcc \
+            git \
+            file
+          curl https://nim-lang.org/choosenim/init.sh -OsSf
+          chmod 755 ./init.sh
+          ./init.sh -y
+          export PATH=$HOME/.nimble/bin:$PATH
+          cd chawan
+          make submodule
+          make
+          rm -rf /usr/local/*
+          make install
+          mkdir -p AppDir/usr
+          cp -R /usr/local/* AppDir/usr
+          sed -i -e 's#/usr#././#g' AppDir/usr/bin/cha
+          curl -sLO https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage
+          chmod 755 appimagetool-x86_64.AppImage
+          ./appimagetool-x86_64.AppImage --appimage-extract
+          cp squashfs-root/usr/bin/* /usr/local/bin/
+          cp chawan.desktop AppDir
+          cp icon.png AppDir
+          cd AppDir
+          ln -s usr/bin/cha AppRun
+          cd ..
+          appimagetool AppDir
+          mv Chawan-x86_64.AppImage "Chawan-x86_64-$(git rev-parse --short HEAD).AppImage"
+          echo "filename=Chawan-x86_64-$(git rev-parse --short HEAD).AppImage" >> $GITHUB_OUTPUT
+      - name: Publish AppImage
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: |
+          curl --user ${{ github.actor }}:${{ secrets.PACKAGE_PUSH }} \
+            --upload-file ${{ runner.temp }}/${{ steps.build.outputs.filename }} \
+            https://git.lerch.org/api/packages/lobo/generic/chawan-appimage/${{ steps.build.outputs.filename }}
+      - name: Save build
+        if: steps.cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            ${{ steps.build.outputs.filename }}
+          key: ${{ steps.cache.outputs.cache-primary-key }}
+      - name: Notify
+        uses: https://git.lerch.org/lobo/action-notify-ntfy@v2
+        if: failure()
+        with:
+          host: ${{ secrets.NTFY_HOST }}
+          topic: ${{ secrets.NTFY_TOPIC }}
+          user: ${{ secrets.NTFY_USER }}
+          password: ${{ secrets.NTFY_PASSWORD }}
