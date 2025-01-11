@@ -75,7 +75,7 @@ jobs:
         run: |
           curl --user ${{ github.actor }}:${{ secrets.PACKAGE_PUSH }} \
             --upload-file ${{ steps.build.outputs.filename }} \
-            https://git.lerch.org/api/packages/lobo/generic/chawan-appimage/${{ steps.build.outputs.filename }}
+            https://git.lerch.org/api/packages/lobo/generic/chawan-appimage/images/${{ steps.build.outputs.filename }}
       - name: Save build
         if: steps.cache.outputs.cache-hit != 'true'
         uses: actions/cache/save@v4
