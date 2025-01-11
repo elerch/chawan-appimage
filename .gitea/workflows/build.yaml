@@ -70,12 +70,13 @@ jobs:
           appimagetool chawan/AppDir
           mv Chawan-x86_64.AppImage "Chawan-x86_64-$(cd chawan && git rev-parse --short HEAD).AppImage"
           echo "filename=Chawan-x86_64-$(cd chawan && git rev-parse --short HEAD).AppImage" >> $GITHUB_OUTPUT
+          echo "chawan-version=$(cd chawan && git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
       - name: Publish AppImage
         if: steps.cache.outputs.cache-hit != 'true'
         run: |
           curl --user ${{ github.actor }}:${{ secrets.PACKAGE_PUSH }} \
             --upload-file ${{ steps.build.outputs.filename }} \
-            https://git.lerch.org/api/packages/lobo/generic/chawan-appimage/images/${{ steps.build.outputs.filename }}
+            https://git.lerch.org/api/packages/lobo/generic/chawan-appimage/${{ steps.build.outputs.chawan-version }}/${{ steps.build.outputs.filename }}
       - name: Save build
         if: steps.cache.outputs.cache-hit != 'true'
         uses: actions/cache/save@v4
