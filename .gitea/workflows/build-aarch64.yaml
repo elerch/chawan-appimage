@@ -10,6 +10,11 @@ env:
   ACTIONS_RUNTIME_TOKEN: ${{ secrets.GITHUB_TOKEN }}
   ACTIONS_RUNTIME_URL: ${{ env.GITHUB_SERVER_URL }}/api/actions_pipeline/
 jobs:
+  ######################################################################
+  ## NOTE: NIM does not support arm64 Linux at the moment. Workflow
+  ##       is disabled in Gitea until this is resolved
+  ##       https://github.com/nim-lang/choosenim/issues/23
+  ######################################################################
   build-appimage:
     runs-on: ubuntu-latest-aarch64
     steps:
