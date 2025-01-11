@@ -21,7 +21,7 @@ jobs:
       - name: Upstream version
         id: upstream-version
         run: |
-          echo "version=$(git rev-parse HEAD)" >> $GITHUB_OUTPUT
+          echo "version=$(git rev-parse HEAD)/$(cd chawan && git rev-parse HEAD)" >> $GITHUB_OUTPUT
       - name: Check for pre-existing build
         id: cache
         uses: actions/cache/restore@v4
