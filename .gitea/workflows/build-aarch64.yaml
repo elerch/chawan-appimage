@@ -1,0 +1,90 @@
+name: AppImage Build
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '30 11 * * *' # 11:30 UTC, 3:30AM Pacific
+  push:
+    branches:
+      - '*'
+env:
+  ACTIONS_RUNTIME_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  ACTIONS_RUNTIME_URL: ${{ env.GITHUB_SERVER_URL }}/api/actions_pipeline/
+jobs:
+  build-appimage:
+    runs-on: ubuntu-latest-aarch64
+    steps:
+      - name: Check out repository code
+        uses: actions/checkout@v4
+      - name: Checkout upstream
+        run: |
+          git clone --depth=1 https://git.sr.ht/~bptato/chawan
+      - name: Get parameters
+        id: vars
+        run: |
+          echo "upstream=$(cd chawan && git rev-parse HEAD)" | tee -a $GITHUB_OUTPUT
+          echo "shorthash=$(cd chawan && git rev-parse --short HEAD)" | tee -a $GITHUB_OUTPUT
+          echo "imagename=Chawan-aarch64-$(cd chawan && git rev-parse --short HEAD).AppImage" | tee -a $GITHUB_OUTPUT
+          echo "packageurl=https://git.lerch.org/api/packages/lobo/generic/chawan-appimage/$(git rev-parse --short HEAD)/Chawan-aarch64-$(cd chawan && git rev-parse --short HEAD).AppImage" | tee -a $GITHUB_OUTPUT
+      - name: Check for built package
+        id: package
+        run: |
+          if [ $(curl -s -o /dev/null -w "%{http_code}" ${{ steps.vars.outputs.packageurl }}) = 200 ]; then
+            echo "built=true" | tee -a $GITHUB_OUTPUT
+          else
+            echo "built=false" | tee -a $GITHUB_OUTPUT
+          fi
+      - name: Build AppImage
+        id: build
+        if: steps.package.outputs.built != 'true'
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends \
+            ca-certificates \
+            curl \
+            libssh2-1-dev \
+            libcurl4-openssl-dev \
+            pkg-config \
+            make \
+            ncurses-base \
+            xz-utils \
+            gcc \
+            git \
+            file
+          curl https://nim-lang.org/choosenim/init.sh -OsSf
+          chmod 755 ./init.sh
+          ./init.sh -y
+          export PATH=$HOME/.nimble/bin:$PATH
+          cd chawan
+          make submodule
+          make
+          rm -rf /usr/local/*
+          make install
+          mkdir -p AppDir/usr
+          cp -R /usr/local/* AppDir/usr
+          sed -i -e 's#/usr#././#g' AppDir/usr/bin/cha
+          curl -sLO https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-aarch64.AppImage
+          chmod 755 appimagetool-aarch64.AppImage
+          ./appimagetool-aarch64.AppImage --appimage-extract
+          cp squashfs-root/usr/bin/* /usr/local/bin/
+          cp ../chawan.desktop AppDir
+          cp ../icon.png AppDir
+          cd AppDir
+          ln -s usr/bin/cha AppRun
+          cd ../..
+          appimagetool chawan/AppDir
+          mv Chawan-aarch64.AppImage "Chawan-aarch64-$(cd chawan && git rev-parse --short HEAD).AppImage"
+          echo "filename=Chawan-aarch64-$(cd chawan && git rev-parse --short HEAD).AppImage" | tee -a $GITHUB_OUTPUT
+      - name: Publish AppImage
+        if: steps.package.outputs.built != 'true'
+        run: |
+          curl -s --user ${{ github.actor }}:${{ secrets.PACKAGE_PUSH }} \
+            --upload-file ${{ steps.build.outputs.filename }} \
+            ${{ steps.vars.outputs.packageurl }}
+      - name: Notify
+        uses: https://git.lerch.org/lobo/action-notify-ntfy@v2
+        if: failure()
+        with:
+          host: ${{ secrets.NTFY_HOST }}
+          topic: ${{ secrets.NTFY_TOPIC }}
+          user: ${{ secrets.NTFY_USER }}
+          password: ${{ secrets.NTFY_PASSWORD }}
