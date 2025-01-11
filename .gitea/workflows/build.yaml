@@ -18,21 +18,24 @@ jobs:
       - name: Checkout upstream
         run: |
           git clone --depth=1 https://git.sr.ht/~bptato/chawan
-      - name: Upstream version
-        id: upstream-version
+      - name: Get parameters
+        id: vars
         run: |
-          echo "version=$(git rev-parse HEAD)/$(cd chawan && git rev-parse HEAD)" >> $GITHUB_OUTPUT
-          echo "shorthash=$(cd chawan && git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
-      - name: Check for pre-existing build
-        id: cache
-        uses: actions/cache/restore@v4
-        with:
-          lookup-only: true
-          key: ${{ steps.upstream-version.outputs.version }}
-          path: Chawan-x86_64-${{ steps.upstream-version.outputs.shorthash }}.AppImage"
+          echo "upstream=$(cd chawan && git rev-parse HEAD)" | tee -a $GITHUB_OUTPUT
+          echo "shorthash=$(cd chawan && git rev-parse --short HEAD)" | tee -a $GITHUB_OUTPUT
+          echo "imagename=Chawan-x86_64-$(cd chawan && git rev-parse --short HEAD).AppImage" | tee -a $GITHUB_OUTPUT
+          echo "packageurl=https://git.lerch.org/api/packages/lobo/generic/chawan-appimage/$(git rev-parse --short HEAD)/Chawan-x86_64-$(cd chawan && git rev-parse --short HEAD).AppImage" | tee -a $GITHUB_OUTPUT
+      - name: Check for built package
+        id: package
+        run: |
+          if [ $(curl -s -o /dev/null -w "%{http_code}" ${{ steps.vars.outputs.packageurl }}) = 200 ]; then
+            echo "built=true" | tee -a $GITHUB_OUTPUT
+          else
+            echo "built=false" | tee -a $GITHUB_OUTPUT
+          fi
       - name: Build AppImage
         id: build
-        if: steps.cache.outputs.cache-hit != 'true'
+        if: steps.package.outputs.built != 'true'
         run: |
           apt-get update
           apt-get install -y --no-install-recommends \
@@ -70,21 +73,13 @@ jobs:
           cd ../..
           appimagetool chawan/AppDir
           mv Chawan-x86_64.AppImage "Chawan-x86_64-$(cd chawan && git rev-parse --short HEAD).AppImage"
-          echo "filename=Chawan-x86_64-$(cd chawan && git rev-parse --short HEAD).AppImage" >> $GITHUB_OUTPUT
-          echo "chawan-version=$(cd chawan && git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+          echo "filename=Chawan-x86_64-$(cd chawan && git rev-parse --short HEAD).AppImage" | tee -a $GITHUB_OUTPUT
       - name: Publish AppImage
-        if: steps.cache.outputs.cache-hit != 'true'
+        if: steps.package.outputs.built != 'true'
         run: |
-          curl --user ${{ github.actor }}:${{ secrets.PACKAGE_PUSH }} \
+          curl -s --user ${{ github.actor }}:${{ secrets.PACKAGE_PUSH }} \
             --upload-file ${{ steps.build.outputs.filename }} \
-            https://git.lerch.org/api/packages/lobo/generic/chawan-appimage/${{ steps.build.outputs.chawan-version }}/${{ steps.build.outputs.filename }}
-      - name: Save build
-        if: steps.cache.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v4
-        with:
-          path: |
-            ${{ steps.build.outputs.filename }}
-          key: ${{ steps.cache.outputs.cache-primary-key }}
+            ${{ steps.vars.outputs.packageurl }}
       - name: Notify
         uses: https://git.lerch.org/lobo/action-notify-ntfy@v2
         if: failure()
