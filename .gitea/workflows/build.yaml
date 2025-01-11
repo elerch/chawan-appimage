@@ -22,13 +22,14 @@ jobs:
         id: upstream-version
         run: |
           echo "version=$(git rev-parse HEAD)/$(cd chawan && git rev-parse HEAD)" >> $GITHUB_OUTPUT
+          echo "shorthash=$(cd chawan && git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
       - name: Check for pre-existing build
         id: cache
         uses: actions/cache/restore@v4
         with:
           lookup-only: true
           key: ${{ steps.upstream-version.outputs.version }}
-          path: README.md # Path required on lookup only?
+          path: Chawan-x86_64-${{ steps.upstream-version.outputs.shorthash }}.AppImage"
       - name: Build AppImage
         id: build
         if: steps.cache.outputs.cache-hit != 'true'
