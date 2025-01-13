@@ -21,10 +21,11 @@ jobs:
       - name: Get parameters
         id: vars
         run: |
+          shorthash="$(cd chawan && git rev-parse --short HEAD)"
           echo "upstream=$(cd chawan && git rev-parse HEAD)" | tee -a $GITHUB_OUTPUT
-          echo "shorthash=$(cd chawan && git rev-parse --short HEAD)" | tee -a $GITHUB_OUTPUT
+          echo "shorthash=$shorthash" | tee -a $GITHUB_OUTPUT
           echo "imagename=Chawan-x86_64-$(cd chawan && git rev-parse --short HEAD).AppImage" | tee -a $GITHUB_OUTPUT
-          echo "packageurl=https://git.lerch.org/api/packages/lobo/generic/chawan-appimage/$(git rev-parse --short HEAD)/Chawan-x86_64-$(cd chawan && git rev-parse --short HEAD).AppImage" | tee -a $GITHUB_OUTPUT
+          echo "packageurl=https://git.lerch.org/api/packages/lobo/generic/chawan-appimage/${shorthash}/Chawan-x86_64-${shorthash}.AppImage" | tee -a $GITHUB_OUTPUT
       - name: Check for built package
         id: package
         run: |
