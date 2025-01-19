@@ -56,7 +56,6 @@ jobs:
           ./init.sh -y
           export PATH=$HOME/.nimble/bin:$PATH
           cd chawan
-          make submodule
           make
           rm -rf /usr/local/*
           make install
